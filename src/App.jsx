@@ -1,117 +1,71 @@
 import { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import "./App.css";
+
+const schema = z
+  .object({
+    firstName: z.string().min(1, "First Name is required"),
+    lastName: z.string().min(1, "Last Name is required"),
+    dob: z.string().min(1, "Date of Birth is required"),
+    email: z.string().email("Enter a valid email"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Confirm Password is required"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
 
 function App() {
   const [step, setStep] = useState(1);
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    dob: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    watch,
+    formState: { errors, isValid },
+  } = useForm({
+    resolver: zodResolver(schema),
+    mode: "onChange",
+    shouldUnregister: false,
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      dob: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
   });
 
-  const [errors, setErrors] = useState({
-    firstName: "",
-    lastName: "",
-    dob: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const nextStep = async () => {
+    let valid = false;
 
-  const validate = (name, value) => {
-    switch (name) {
-      case "firstName":
-        return value.trim() === "" ? "First Name is required" : "";
+    if (step === 1) {
+      valid = await trigger(["firstName", "lastName", "dob"]);
+    }
 
-      case "lastName":
-        return value.trim() === "" ? "Last Name is required" : "";
+    if (step === 2) {
+      valid = await trigger([
+        "email",
+        "password",
+        "confirmPassword",
+      ]);
+    }
 
-      case "dob":
-        return value === "" ? "Date of Birth is required" : "";
-
-      case "email":
-        if (!value) return "Email is required";
-        if (!value.includes("@"))
-          return "Email must contain @";
-        return "";
-
-      case "password":
-        if (!value)
-          return "Password is required";
-        if (value.length < 8)
-          return "Password must be at least 8 characters";
-        return "";
-
-      case "confirmPassword":
-        if (!value)
-          return "Confirm Password is required";
-        if (value !== formData.password)
-          return "Passwords do not match";
-        return "";
-
-      default:
-        return "";
+    if (valid) {
+      setStep(step + 1);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    const updatedData = {
-      ...formData,
-      [name]: value,
-    };
-
-    setFormData(updatedData);
-
-    setErrors({
-      firstName: validate(
-        "firstName",
-        updatedData.firstName
-      ),
-      lastName: validate(
-        "lastName",
-        updatedData.lastName
-      ),
-      dob: validate("dob", updatedData.dob),
-      email: validate("email", updatedData.email),
-      password: validate(
-        "password",
-        updatedData.password
-      ),
-      confirmPassword: validate(
-        "confirmPassword",
-        updatedData.confirmPassword
-      ),
-    });
-  };
-
-  const isStep1Valid =
-    formData.firstName &&
-    formData.lastName &&
-    formData.dob &&
-    !errors.firstName &&
-    !errors.lastName &&
-    !errors.dob;
-
-  const isStep2Valid =
-    formData.email &&
-    formData.password &&
-    formData.confirmPassword &&
-    !errors.email &&
-    !errors.password &&
-    !errors.confirmPassword;
-
-  const handleSubmit = () => {
-    console.log(formData);
+  const onSubmit = (data) => {
+    console.log(data);
     alert("Form Submitted Successfully!");
   };
 
@@ -126,85 +80,74 @@ function App() {
 
           <input
             type="text"
-            name="firstName"
             placeholder="First Name"
-            value={formData.firstName}
-            onChange={handleChange}
-          />
-          {errors.firstName && <p className="error">{errors.firstName}</p>}
+            {...register("firstName")}/>
+          {errors.firstName && (
+            <p className="error">{errors.firstName.message}</p>
+          )}
 
           <input
             type="text"
-            name="lastName"
             placeholder="Last Name"
-            value={formData.lastName}
-            onChange={handleChange}
-          />
-          {errors.lastName && <p className="error">{errors.lastName}</p>}
+            {...register("lastName")}/>
+          {errors.lastName && (
+            <p className="error">{errors.lastName.message}</p>
+          )}
 
           <input
             type="date"
-            name="dob"
-            value={formData.dob}
-            onChange={handleChange}
-          />
-          {errors.dob && <p className="error">{errors.dob}</p>}
+            {...register("dob")}/>
+          {errors.dob && (
+            <p className="error">{errors.dob.message}</p>
+          )}
 
           <button
-            disabled={!isStep1Valid}
-            onClick={() => setStep(2)}
-          >
+            type="button"
+            onClick={nextStep}>
             Next
           </button>
         </div>
       )}
-
       {step === 2 && (
         <div className="form-box">
           <h2>Step 2 - Account Details</h2>
 
           <input
             type="email"
-            name="email"
             placeholder="Email"
-            value={formData.email}
-            onChange={handleChange}
-          />
-          {errors.email && <p className="error">{errors.email}</p>}
+            {...register("email")}/>
+          {errors.email && (
+            <p className="error">{errors.email.message}</p>
+          )}
 
           <div className="password-box">
             <input
               type={showPassword ? "text" : "password"}
-              name="password"
               placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-            />
+              {...register("password")}/>
 
             <span
               className="eye-icon"
-              onClick={() => setShowPassword(!showPassword)}
-            >
+              onClick={() => setShowPassword(!showPassword)}>
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </span>
           </div>
-          {errors.password && <p className="error">{errors.password}</p>}
+
+          {errors.password && (
+            <p className="error">{errors.password.message}</p>
+          )}
 
           <div className="password-box">
             <input
               type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
               placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-            />
+              {...register("confirmPassword")}/>
 
             <span
               className="eye-icon"
               onClick={() =>
                 setShowConfirmPassword(!showConfirmPassword)
-              }
-            >
+              }>
               {showConfirmPassword ? (
                 <FaEyeSlash />
               ) : (
@@ -212,19 +155,23 @@ function App() {
               )}
             </span>
           </div>
+
           {errors.confirmPassword && (
-            <p className="error">{errors.confirmPassword}</p>
+            <p className="error">
+              {errors.confirmPassword.message}
+            </p>
           )}
 
           <div className="buttons">
-            <button onClick={() => setStep(1)}>
+            <button
+              type="button"
+              onClick={() => setStep(1)}>
               Back
             </button>
 
             <button
-              disabled={!isStep2Valid}
-              onClick={() => setStep(3)}
-            >
+              type="button"
+              onClick={nextStep}>
               Next
             </button>
           </div>
@@ -234,17 +181,32 @@ function App() {
         <div className="form-box">
           <h2>Step 3 - Review & Submit</h2>
 
-          <p><strong>First Name:</strong> {formData.firstName}</p>
-          <p><strong>Last Name:</strong> {formData.lastName}</p>
-          <p><strong>Date of Birth:</strong> {formData.dob}</p>
-          <p><strong>Email:</strong> {formData.email}</p>
+          <p>
+            <strong>First Name:</strong> {watch("firstName")}
+          </p>
+
+          <p>
+            <strong>Last Name:</strong> {watch("lastName")}
+          </p>
+
+          <p>
+            <strong>Date of Birth:</strong> {watch("dob")}
+          </p>
+
+          <p>
+            <strong>Email:</strong> {watch("email")}
+          </p>
 
           <div className="buttons">
-            <button onClick={() => setStep(2)}>
+            <button
+              type="button"
+              onClick={() => setStep(2)}>
               Back
             </button>
 
-            <button onClick={handleSubmit}>
+            <button
+              type="button"
+              onClick={handleSubmit(onSubmit)}>            
               Submit
             </button>
           </div>
@@ -253,5 +215,4 @@ function App() {
     </div>
   );
 }
-
 export default App;
